@@ -6,5 +6,4 @@ venv/
 # ignore les fichiers de cache 
 __pycache__/
 
-
 data/code* 
