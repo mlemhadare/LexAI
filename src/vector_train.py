@@ -39,12 +39,3 @@ def create_vector_store(documents, embeddings, persist_directory="../chroma_juri
     )
     # vector_store.persist()
     print(f"Base vectorielle créée et sauvegardée dans {persist_directory}")
-
-if __name__ == "__main__":
-    documents = load_documents(Path("../data/all_codes.json"))
-    if not documents:
-        print("Aucun document chargé. Arrêt.")
-        exit(1)
-    print('all_codes.json loaded')
-    gemini_embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
-    create_vector_store(documents, gemini_embeddings)

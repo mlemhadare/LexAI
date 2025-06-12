@@ -6,5 +6,5 @@ venv/
 # ignore les fichiers de cache 
 __pycache__/
 
-chroma_juridique/
-data/ 
+
+data/code* 

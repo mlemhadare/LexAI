@@ -8,7 +8,7 @@ from langchain.prompts import PromptTemplate
 from langchain.schema import StrOutputParser
 from langchain.schema.runnable import RunnablePassthrough
 from langchain.schema.runnable import RunnableMap, RunnableLambda
-
+from vector_train import load_documents, create_vector_store
 from context_expander import keyword_expander
 from query_enhancer import enhance_query
 from reranker import CrossEncoderReranker
@@ -75,6 +75,13 @@ def is_pure_greeting(text: str) -> bool:
 
 
 if __name__ == "__main__":
+    documents = load_documents(Path("../data/all_codes.json"))
+    if not documents:
+        print("Aucun document chargé. Arrêt.")
+        exit(1)
+    print('all_codes.json loaded')
+    gemini_embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+    create_vector_store(documents, gemini_embeddings)
     gemini_embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
     vector_store = load_vector_store(gemini_embeddings)
     retriever = create_retriever(vector_store)
