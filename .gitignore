@@ -1,5 +1,6 @@
 # ignore les fichiers de configuration 
-.env 
+.env.dist
+ 
 # ignore les fichiers de venv 
 venv/ 
 # ignore les fichiers de cache 
