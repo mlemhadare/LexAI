@@ -45,6 +45,11 @@ LexAI's architecture is built for precision, speed, and scalability in the compl
   - **Fallback**: If no relevant context, respond with: "Je suis une IA juridique qui se base sur les articles de lois... Est-ce que je peux vous aider sur un autre sujet lié au juridique ?"
 - **Why?** This layered prompting, including CoT for structured reasoning, prevents off-topic answers, ensures conciseness, and enforces accountability, making LexAI trustworthy for legal professionals.
 
+### 5. Query Enhancement for Legal Precision
+- **Component**: `query_enhancer.py` using Groq LLM.
+- **Function**: Reformulates user queries into formal, legally precise language (e.g., "griller un feu" → "franchir un feu rouge de signalisation").
+- **Why?** Everyday language doesn't match legal terminology. This preprocessing step bridges the gap, improving retrieval accuracy by aligning queries with the database's formal legal content and reducing irrelevant results.
+
 
 ## Project Structure
 ```
@@ -71,7 +76,7 @@ LexAI/
 ```
 
 ## Demo
-![LexAI Demo](./assets/demo.gif)
+![LexAI Demo](./assets/streamlit_interface.png)
 ![LexAI_demo_app](https://lexai-app.streamlit.app/)
 
 ## Contributing
