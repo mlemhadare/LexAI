@@ -11,6 +11,12 @@ from langchain_core.prompts import PromptTemplate
 import streamlit as st
 import time
 import markdown2
+import sys
+
+# Add parent directory to path for imports
+sys.path.append(str(Path(__file__).parent.parent))
+
+from src.query_enhancer import enhance_query
 
 # Load environment variables
 load_dotenv()
@@ -22,6 +28,11 @@ if not groq_api_key:
 PERSIST_DIRECTORY = Path(__file__).parent.parent / "chroma_juridique"
 EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 LLM_MODEL = "llama-3.1-8b-instant"
+
+if not PERSIST_DIRECTORY.exists():
+    st.info("Base de données en cours de génération... Cela peut prendre quelques minutes.")
+    from src.vector_train import build_database
+    build_database()
 
 def load_vector_store(persist_directory: Path = PERSIST_DIRECTORY) -> Chroma:
     """
@@ -39,7 +50,7 @@ def load_vector_store(persist_directory: Path = PERSIST_DIRECTORY) -> Chroma:
     if not persist_directory.exists():
         raise FileNotFoundError(f"Aucune base vectorielle trouvée dans {persist_directory}. Exécutez vector_train.py d'abord.")
 
-    embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
+    embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL, model_kwargs={'device': 'cpu'})
     print(f"Chargement de la base vectorielle depuis {persist_directory}")
     return Chroma(persist_directory=str(persist_directory), embedding_function=embeddings)
 
@@ -51,7 +62,7 @@ def create_qa_chain(vector_store: Chroma):
         vector_store (Chroma): The vector store for retrieval.
 
     Returns:
-        tuple: (Runnable QA chain, LLM instance)
+        tuple: (Runnable QA chain, LLM instance, query enhancer)
     """
     retriever = vector_store.as_retriever(search_kwargs={"k": 15})
 
@@ -91,7 +102,8 @@ def create_qa_chain(vector_store: Chroma):
         | llm
         | StrOutputParser()
     )
-    return qa_chain, llm
+    query_enhancer = enhance_query(llm)
+    return qa_chain, llm, query_enhancer
 
 def initialize_session() -> None:
     """
@@ -112,15 +124,16 @@ def render_sidebar() -> None:
     st.sidebar.title("LexIA - Assistant Juridique")
     st.sidebar.markdown("Posez vos questions juridiques en français.")
     st.sidebar.markdown("---")
-    st.sidebar.markdown("**Note :** Réponses basées sur les codes fournis.")
+    st.sidebar.markdown("**Note :** Réponses générées par une IA basée sur les articles de lois françaises (il est susceptible que l'IA fasse des erreurs).")
 
-def handle_user_input(qa_chain, llm) -> None:
+def handle_user_input(qa_chain, llm, query_enhancer) -> None:
     """
     Handle user input, generate response, and update chat history.
 
     Args:
         qa_chain (Runnable): The QA chain for answering questions.
         llm: The LLM instance for clarification checks.
+        query_enhancer: The query enhancer runnable.
     """
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
@@ -139,38 +152,84 @@ def handle_user_input(qa_chain, llm) -> None:
         with st.chat_message("assistant"):
             with st.spinner("🧠 Réflexion en cours..."):
                 try:
+                    # 1. Gestion de l'historique 
+                    previous_messages = [msg for msg in st.session_state.messages[:-1] if msg['role'] == 'assistant']
+                    chat_history = previous_messages[-1]['content'] if previous_messages else ""
+                    
+                    # 2. Amélioration de la requête 
+                    enhanced_query = query_enhancer.invoke({"chat_history": chat_history, "original_question": prompt})
+                    
+                    # 3. Prompt de Classification 
                     clarification_prompt = f"""
-                    Question : "{prompt}"
+                    Question : "{enhanced_query}"
 
-                    1. Cette question porte-t-elle sur le droit français, les lois, les codes, les sanctions, les infractions ou un sujet juridique ? Réponds OUI ou NON.
+                    Tu es un classificateur invisible pour un assistant juridique (LexAI). Ta seule tâche est d'analyser la question de l'utilisateur et de renvoyer UNIQUEMENT une sortie finale basée sur les règles suivantes.
 
-                    2. Si OUI, est-elle claire et spécifique (pas vague) ? Réponds OUI ou NON.
+                    N'affiche JAMAIS tes étapes de raisonnement. N'affiche JAMAIS "Option 1" ou "Oui/Non".
 
-                    3. Basé sur 1 et 2 :
-                       - Si OUI à 1 et OUI à 2 : 'LEGAL_CLEAR'
-                       - Si OUI à 1 et NON à 2 : Demande une précision courte.
-                       - Si NON à 1 : "Désolé, je suis une IA spécialisée dans le droit français. Je ne peux répondre qu'aux questions juridiques. Puis-je vous aider avec une question liée au droit ?"
+                    Analyse mentalement la question selon ces critères :
+                    1. Est-ce une question liée au droit français ?
+                    2. Si oui, est-elle suffisamment précise pour une recherche juridique ?
 
-                    Réponds UNIQUEMENT avec la réponse finale, sans explications intermédiaires.
+                    Règles de sortie (choisis-en une seule) :
+
+                    CAS A : Si la question n'est PAS juridique (recette de cuisine, météo, code informatique...) :
+                    -> Réponds exactement : "Désolé, je suis une IA spécialisée dans le droit français. Je ne peux répondre qu'aux questions juridiques. Puis-je vous aider avec une sujet de droit ?"
+
+                    CAS B : Si la question est juridique MAIS trop vague (ex: "J'ai un problème", "C'est légal ?", "La police m'a arrêté") :
+                    -> Réponds par une courte question de clarification (ex: "Pourriez-vous préciser la nature du problème ou de l'infraction ?").
+
+                    CAS C : Si la question est juridique ET claire (ex: "Peut-on griller un feu rouge ?", "Durée préavis démission", "Article 1240 code civil") :
+                    -> Réponds exactement : "LEGAL_CLEAR"
+
+                    Question utilisateur : "{enhanced_query}"
+                    Réponse finale :
                     """
-                    clarification = llm.invoke(clarification_prompt).content.strip()
-                    if "LEGAL_CLEAR" in clarification:
-                        response = qa_chain.invoke(prompt)
+                    
+                    # Appel LLM pour la classification
+                    result = llm.invoke(clarification_prompt)
+                    if isinstance(result, str):
+                        clarification = result.strip()
+                    elif hasattr(result, 'content'):
+                        clarification = result.content.strip()
                     else:
-                        response = clarification
-                    clean_text = response.strip()
+                        clarification = str(result).strip()
+
+                    final_response_text = "" # Variable unique pour le texte final
+
+                    # 4. Logique conditionnelle
+                    if "LEGAL_CLEAR" in clarification:
+                        rag_output = qa_chain.invoke(enhanced_query)
+                        # qa_chain returns a str
+                        final_response_text = rag_output
+                    else:
+                        # Si refus ou demande de clarification, on utilise la sortie du classificateur
+                        final_response_text = clarification
+
+                    # 5. Affichage
                     st.markdown("**LexIA :**")
                     message_placeholder = st.empty()
-                    words = clean_text.split()
+                    
+                    # Petit nettoyage optionnel
+                    clean_text = final_response_text.strip()
+                    
+                    # --- OPTIMISATION STREAMLIT ---
+                    # Si tu veux un effet plus fluide, tu peux utiliser stream(), 
+                    # mais ta boucle manuelle fonctionne aussi.
                     displayed_text = ""
+                    words = clean_text.split()
                     for i, word in enumerate(words):
                         displayed_text += word + " "
-                        message_placeholder.markdown(displayed_text)
-                        time.sleep(0.03)
-                    message_placeholder.markdown(clean_text)
-                    st.session_state.messages.append({"role": "assistant", "content": response})
+                        message_placeholder.markdown(displayed_text + "▌") # Petit curseur sympa
+                        time.sleep(0.03) 
+                    
+                    message_placeholder.markdown(clean_text) # Affichage final propre sans curseur
+
+                    # 6. Sauvegarde dans l'historique (Toujours sauvegarder le texte final)
+                    st.session_state.messages.append({"role": "assistant", "content": clean_text})
+
                 except Exception as e:
-                    st.error(f"Erreur lors de la génération : {e}")
+                    st.error(f"Une erreur est survenue : {e}")
 
 def main() -> None:
     """
@@ -185,7 +244,7 @@ def main() -> None:
             from src.vector_train import build_database
             build_database()
         vector_store = load_vector_store()
-        qa_chain, llm = create_qa_chain(vector_store)
+        qa_chain, llm, query_enhancer = create_qa_chain(vector_store)
     except Exception as e:
         st.error(f"Erreur lors du chargement de la base de données : {e}")
         return
@@ -211,7 +270,7 @@ def main() -> None:
     st.markdown("---")
 
     # Chat interface
-    handle_user_input(qa_chain, llm)
+    handle_user_input(qa_chain, llm, query_enhancer)
 
 if __name__ == "__main__":
     main()

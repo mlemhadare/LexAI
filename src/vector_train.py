@@ -53,17 +53,14 @@ def build_database(json_path: Path = Path("data/output/all_codes.json"),
         ValueError: If user chooses not to overwrite existing database.
     """
     if persist_directory.exists() and any(persist_directory.iterdir()):
-        print("La base vectorielle existe déjà. Écrasement automatique pour les tests.")
-        # response = input(f"La base vectorielle existe déjà dans {persist_directory}. Voulez-vous l'écraser ? (y/N): ")
-        # if response.lower() != 'y':
-        #     print("Opération annulée.")
-        #     return
+        print("La base vectorielle existe déjà. Écrasement automatique.")
+        
 
     print("Chargement des documents...")
     documents = load_documents(json_path)
 
     print("Initialisation des embeddings HuggingFace...")
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2", model_kwargs={'device': 'cpu'})
 
     print("Création de la base vectorielle...")
     vector_store = Chroma.from_documents(

@@ -1,12 +1,11 @@
 
 
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.language_models import BaseLanguageModel
+from langchain_core.runnables import Runnable
 
-from langchain.schema import StrOutputParser
-from langchain.base_language import BaseLanguageModel
-from langchain.schema.runnable import RunnableSerializable
-
-def enhance_query(llm : BaseLanguageModel) -> RunnableSerializable[dict, str]:
+def enhance_query(llm : BaseLanguageModel) -> Runnable[dict, str]:
     query_enhanced_prompt_template = PromptTemplate.from_template("""
     Tu es **LexIA**, une assistante juridique spécialisée dans le domaine du droit.
 
