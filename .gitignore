@@ -1,11 +1,6 @@
-# ignore les fichiers de configuration 
 .env
- 
-# ignore les fichiers de venv 
 venv/ 
-# ignore les fichiers de cache 
 __pycache__/
-
 data/*
-
-chroma_juridique/
+chroma_juridique/*
+chroma_juridique/chroma.sqlite3

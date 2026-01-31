@@ -45,48 +45,6 @@ LexAI's architecture is built for precision, speed, and scalability in the compl
   - **Fallback**: If no relevant context, respond with: "Je suis une IA juridique qui se base sur les articles de lois... Est-ce que je peux vous aider sur un autre sujet lié au juridique ?"
 - **Why?** This layered prompting, including CoT for structured reasoning, prevents off-topic answers, ensures conciseness, and enforces accountability, making LexAI trustworthy for legal professionals.
 
-## Installation & Setup
-
-### Prerequisites
-- Python 3.9 or higher
-- A Groq API key (free tier available at [groq.com](https://groq.com/))
-
-### Environment Setup
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/your-username/LexAI.git
-   cd LexAI
-   ```
-
-2. Create and activate a virtual environment:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  
-   ```
-
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. Set up environment variables:
-   - Add a new `.env`
-   - Add your Groq API key:
-     ```
-     GROQ_API_KEY=your_api_key_here
-     ```
-
-5. Build the vector database:
-   ```bash
-   python src/vector_train.py
-   ```
-   *Note*: This step indexes ~85,000 lines of French legal codes into ChromaDB. It may take 5-10 minutes.
-
-6. Launch the Streamlit app:
-   ```bash
-   streamlit run src/lexia_app.py
-   ```
-   Access at `http://localhost:8501`.
 
 ## Project Structure
 ```
@@ -114,7 +72,7 @@ LexAI/
 
 ## Demo
 ![LexAI Demo](./assets/demo.gif)
-*Placeholder: Add a GIF or screenshot of the Streamlit interface in action.*
+![LexAI_demo_app](https://lexai-app.streamlit.app/)
 
 ## Contributing
 Contributions are welcome! Please open an issue or submit a pull request for enhancements, bug fixes, or additional legal codes.
