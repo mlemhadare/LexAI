@@ -63,12 +63,13 @@ def create_qa_chain(vector_store: Chroma):
     Question : {question}
 
     Instructions :
+    - Utilise un raisonnement étape par étape (Chain of Thought) : analyse le contexte fourni, identifie les articles pertinents, déduis les implications, puis formuler une réponse concise et précise.
     - Cite toujours l'Article ou le Code spécifique présent dans le contexte fourni.
     - Si la question concerne un concept similaire, reformulé ou lié, utilise les articles pertinents du contexte pour fournir une réponse utile, même si ce n'est pas une correspondance exacte.
     - Évite de refuser une réponse en disant que l'information n'est pas dans le contexte ; cherche des liens ou des déductions basées sur les codes fournis.
     - Si l'utilisateur demande d'expliquer avec des termes simples, d'enrichir ou de détailler, fournis une explication détaillée et accessible en reformulant le contenu légal sans le répéter verbatim, avec des exemples concrets si possible.
     - Réponds directement à la question actuelle sans lister d'historique, de questions précédentes ou de réponses antérieures.
-    - Structure ta réponse : commence par une réponse claire et directe, explique ensuite, puis cite les sources.
+    - Structure ta réponse : Commence par une réponse claire et directe, explique ensuite, puis cite les sources.
     - Fournis des implications pratiques ou des conseils généraux si cela aide à la compréhension, sans inventer.
     - Si vraiment aucune information pertinente n'est trouvée, ou si la question porte sur des données actuelles/variables (comme salaires minimums, taux d'intérêt, etc.) non présentes dans les codes statiques, réponds exactement avec le message suivant sans modification : "Je suis une IA juridique qui se base sur les articles de lois pour fournir une réponse correcte et concise. Je n'ai pas accès à la recherche internet sur des sujets hors ma base de connaissance. Basé sur les codes disponibles, je ne peux pas fournir une réponse précise à cette question. Est-ce que je peux vous aider sur un autre sujet lié au juridique ?"
     - Sois professionnel, précis, utile et encourageant.
@@ -139,18 +140,21 @@ def handle_user_input(qa_chain, llm) -> None:
             with st.spinner("🧠 Réflexion en cours..."):
                 try:
                     clarification_prompt = f"""
-                    Analyse si cette question est liée au droit français ou aux lois.
+                    Question : "{prompt}"
 
-                    Si oui, et si elle est vague, ambiguë ou pourrait se référer à plusieurs contextes légaux, demande poliment une précision en une seule phrase courte.
+                    1. Cette question porte-t-elle sur le droit français, les lois, les codes, les sanctions, les infractions ou un sujet juridique ? Réponds OUI ou NON.
 
-                    Si oui, et elle est claire, réponds uniquement 'LEGAL_CLEAR'.
+                    2. Si OUI, est-elle claire et spécifique (pas vague) ? Réponds OUI ou NON.
 
-                    Si non (hors contexte juridique), réponds avec un message d'excuse poli et invite l'utilisateur à poser des questions juridiques : "Désolé, je suis une IA spécialisée dans le droit français. Je ne peux répondre qu'aux questions juridiques. Puis-je vous aider avec une question liée au droit ?"
+                    3. Basé sur 1 et 2 :
+                       - Si OUI à 1 et OUI à 2 : 'LEGAL_CLEAR'
+                       - Si OUI à 1 et NON à 2 : Demande une précision courte.
+                       - Si NON à 1 : "Désolé, je suis une IA spécialisée dans le droit français. Je ne peux répondre qu'aux questions juridiques. Puis-je vous aider avec une question liée au droit ?"
 
-                    Réponse :
+                    Réponds UNIQUEMENT avec la réponse finale, sans explications intermédiaires.
                     """
                     clarification = llm.invoke(clarification_prompt).content.strip()
-                    if clarification == "LEGAL_CLEAR":
+                    if "LEGAL_CLEAR" in clarification:
                         response = qa_chain.invoke(prompt)
                     else:
                         response = clarification
