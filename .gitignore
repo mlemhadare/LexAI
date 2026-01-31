@@ -1,9 +1,11 @@
 # ignore les fichiers de configuration 
-.env.dist
+.env
  
 # ignore les fichiers de venv 
 venv/ 
 # ignore les fichiers de cache 
 __pycache__/
 
-data/code* 
+data/*
+
+chroma_juridique/
