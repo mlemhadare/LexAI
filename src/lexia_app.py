@@ -176,6 +176,10 @@ def main() -> None:
 
     # Load vector store and create QA chain
     try:
+        if not PERSIST_DIRECTORY.exists():
+            st.info("Base de données en cours de génération... Cela peut prendre quelques minutes.")
+            from src.vector_train import build_database
+            build_database()
         vector_store = load_vector_store()
         qa_chain, llm = create_qa_chain(vector_store)
     except Exception as e:
