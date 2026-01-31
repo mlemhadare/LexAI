@@ -76,8 +76,7 @@ LexAI/
 ```
 
 ## Demo
-![LexAI Demo](./assets/streamlit_interface.png)
-![LexAI_demo_app](https://lexai-app.streamlit.app/)
+![LexAI Demo](./assets/streamlit_interface.png)(https://lexai-app.streamlit.app/)
 
 ## Contributing
 Contributions are welcome! Please open an issue or submit a pull request for enhancements, bug fixes, or additional legal codes.
