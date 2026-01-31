@@ -170,7 +170,7 @@ def handle_user_input(qa_chain, llm) -> None:
                     message_placeholder.markdown(clean_text)
                     st.session_state.messages.append({"role": "assistant", "content": response})
                 except Exception as e:
-                    st.error(f"❌ Erreur lors de la génération : {e}")
+                    st.error(f"Erreur lors de la génération : {e}")
 
 def main() -> None:
     """
